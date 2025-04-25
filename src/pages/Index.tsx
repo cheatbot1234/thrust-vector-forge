@@ -3,7 +3,7 @@ import { useState } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import ParameterPanel from '@/components/rocket/ParameterPanel';
 import ResultsPanel from '@/components/rocket/ResultsPanel';
-import { SimulationResult } from '@/types/simulation';
+import { RocketParameters, SimulationResult } from '@/types/simulation';
 import { runLiteSimulation } from '@/utils/simulationEngine';
 import { useToast } from '@/hooks/use-toast';
 
@@ -13,7 +13,7 @@ const Index = () => {
   const [selectedResult, setSelectedResult] = useState<SimulationResult | null>(null);
   const { toast } = useToast();
 
-  const handleRunSimulation = async (parameters: Record<string, number>) => {
+  const handleRunSimulation = async (parameters: RocketParameters) => {
     setIsSimulating(true);
     
     try {
