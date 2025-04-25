@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,12 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RocketParameters, GrainParameters, CombustionChamberParameters, InjectorParameters, NozzleParameters } from '@/types/simulation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RocketIcon } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { LoadingIndicator } from '@/components/ui/loading-indicator';
 
 interface ParameterPanelProps {
   onRunSimulation: (parameters: RocketParameters) => Promise<void>;
   isSimulating: boolean;
+  useAdvancedMode?: boolean;
 }
 
 const defaultGrainParameters: GrainParameters = {
@@ -55,9 +57,9 @@ const defaultParameters: RocketParameters = {
   nozzle: defaultNozzleParameters,
 };
 
-const ParameterPanel = ({ onRunSimulation, isSimulating }: ParameterPanelProps) => {
+const ParameterPanel = ({ onRunSimulation, isSimulating, useAdvancedMode = false }: ParameterPanelProps) => {
   const [parameters, setParameters] = useState<RocketParameters>(defaultParameters);
-  const [simulationType, setSimulationType] = useState<string>('lite');
+  const [simulationType, setSimulationType] = useState<string>('cea');
 
   const handleParameterChange = (key: keyof RocketParameters) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setParameters({
@@ -99,7 +101,14 @@ const ParameterPanel = ({ onRunSimulation, isSimulating }: ParameterPanelProps) 
   return (
     <Card className="bg-rocket-blue border-rocket-blue/50 text-white w-full md:w-1/3">
       <CardHeader>
-        <CardTitle className="text-rocket-orange">Hybrid Engine Parameters</CardTitle>
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-rocket-orange">Hybrid Engine Parameters</CardTitle>
+          {useAdvancedMode && (
+            <Badge variant="outline" className="bg-rocket-orange/20 border-rocket-orange text-white">
+              Advanced Mode
+            </Badge>
+          )}
+        </div>
         <CardDescription className="text-gray-300">Configure your N2O/Paraffin hybrid rocket engine</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -165,12 +174,15 @@ const ParameterPanel = ({ onRunSimulation, isSimulating }: ParameterPanelProps) 
                   <SelectValue placeholder="Select simulation type" />
                 </SelectTrigger>
                 <SelectContent className="bg-rocket-darkBlue border-rocket-blue/30 text-white">
+                  <SelectItem value="cea" disabled={!useAdvancedMode}>RocketCEA (Advanced)</SelectItem>
                   <SelectItem value="lite">Lite Simulation</SelectItem>
                   <SelectItem value="cfd" disabled>CFD (Coming Soon)</SelectItem>
                   <SelectItem value="fem" disabled>FEM (Coming Soon)</SelectItem>
-                  <SelectItem value="ansys" disabled>ANSYS (Coming Soon)</SelectItem>
                 </SelectContent>
               </Select>
+              {!useAdvancedMode && simulationType === 'cea' && (
+                <p className="text-xs text-amber-400">Backend not available. Start the Python backend for advanced simulations.</p>
+              )}
             </div>
           </TabsContent>
           
@@ -420,11 +432,14 @@ const ParameterPanel = ({ onRunSimulation, isSimulating }: ParameterPanelProps) 
         >
           {isSimulating ? (
             <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Running Simulation...
+              <LoadingIndicator className="mr-2" size="sm" />
+              Running {useAdvancedMode ? 'Advanced' : 'Simplified'} Simulation...
             </>
           ) : (
-            'Run Simulation'
+            <>
+              <RocketIcon className="mr-2 h-4 w-4" />
+              Run Simulation
+            </>
           )}
         </Button>
       </CardFooter>

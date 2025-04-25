@@ -1,9 +1,9 @@
-
 import { RocketParameters, SimulationResult } from '@/types/simulation';
+import { runAdvancedSimulation } from '@/api/simulationApi';
 
 /**
- * Enhanced rocket engine simulation using industry standard models for hybrid N2O/Paraffin engines
- * Based on empirical data and theoretical models from literature
+ * Fallback simulation function using the original algorithm
+ * Will be used if the backend service is unavailable
  */
 export const runLiteSimulation = async (parameters: RocketParameters): Promise<SimulationResult> => {
   // Simulate a network delay
@@ -182,3 +182,19 @@ function calculateThrustCoefficient(gamma: number, pressureRatio: number, expans
   
   return term1 * divergenceLoss + expansionRatio * (pressureRatio - 0) / 10; // Improved pressure ratio term
 }
+
+/**
+ * Enhanced rocket engine simulation that first attempts to use the Python backend
+ * with RocketCEA and CoolProp libraries. Falls back to lite simulation if the backend
+ * is unavailable.
+ */
+export const runSimulation = async (parameters: RocketParameters): Promise<SimulationResult> => {
+  try {
+    // Try to use the advanced simulation API with RocketCEA, CoolProp, etc.
+    return await runAdvancedSimulation(parameters);
+  } catch (error) {
+    console.warn('Advanced simulation failed, falling back to lite simulation:', error);
+    // Fall back to the lite simulation if the API is unavailable
+    return await runLiteSimulation(parameters);
+  }
+};

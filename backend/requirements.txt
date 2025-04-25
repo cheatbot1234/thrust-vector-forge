@@ -1,0 +1,12 @@
+
+fastapi==0.109.0
+uvicorn==0.25.0
+rocketcea==1.1.20
+coolprop==6.4.3
+numpy==1.26.0
+pydantic==2.5.0
+python-multipart==0.0.6
+scipy==1.11.3
+matplotlib==3.8.0
+openmdao==3.27.0
+rocketpy==0.13.0
