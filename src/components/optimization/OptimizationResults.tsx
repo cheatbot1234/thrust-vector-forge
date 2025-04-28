@@ -157,7 +157,7 @@ const OptimizationResults = ({ results, isLoading }: OptimizationResultsProps) =
                         <Badge 
                           variant="outline" 
                           className={`font-mono ${
-                            results.config.objectives.some(obj => obj.name === metric) 
+                            results.config.objectives.some(obj => obj.metric === metric) 
                               ? 'bg-rocket-orange/20 border-rocket-orange' 
                               : 'bg-rocket-blue/20'
                           }`}

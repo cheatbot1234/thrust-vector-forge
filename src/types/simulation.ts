@@ -67,7 +67,7 @@ export interface SimulationOptions {
   meshDensity?: number;
 }
 
-// New interfaces for optimization with updated structure
+// New interfaces for optimization
 
 export interface ParameterRange {
   min: number;
@@ -78,14 +78,17 @@ export interface ParameterRange {
 }
 
 export interface OptimizationObjective {
-  name: 'thrust' | 'specificImpulse' | 'massFlowRate';
-  minimize: boolean;
+  metric: 'thrust' | 'specificImpulse' | 'massFlowRate';
+  direction: 'maximize' | 'minimize';
   weight?: number;
 }
 
-// Updated to flat parameter structure
 export interface OptimizationConfig {
-  parameter_ranges: Record<string, ParameterRange>;
+  parameter_ranges: {
+    [category: string]: { 
+      [parameter: string]: ParameterRange 
+    };
+  };
   objectives: OptimizationObjective[];
   n_trials: number;
   timeout?: number;

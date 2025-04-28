@@ -53,8 +53,6 @@ export const checkBackendStatus = async (): Promise<boolean> => {
  */
 export const createOptimizationStudy = async (config: OptimizationConfig): Promise<{study_id: string}> => {
   try {
-    console.log("Sending optimization config:", JSON.stringify(config, null, 2));
-    
     const response = await fetch(`${API_URL}/optimize/create`, {
       method: 'POST',
       headers: {
@@ -64,18 +62,8 @@ export const createOptimizationStudy = async (config: OptimizationConfig): Promi
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      let errorDetail;
-      try {
-        // Try to parse as JSON
-        const errorData = JSON.parse(errorText);
-        errorDetail = errorData.detail || errorText;
-      } catch {
-        // If not valid JSON, use the raw text
-        errorDetail = errorText;
-      }
-      console.error("Failed to create optimization study:", errorDetail, "Status:", response.status);
-      throw new Error(`Failed to create optimization study: ${errorDetail}`);
+      const errorData = await response.json();
+      throw new Error(errorData.detail || 'Failed to create optimization study');
     }
 
     return await response.json();

@@ -20,86 +20,114 @@ class OptimizationService:
         
     def _build_rocket_parameters(self, trial, config: OptimizationConfig) -> RocketParameters:
         """Build RocketParameters from trial suggestions based on config ranges."""
-        # Create default parameters that will be overridden by optimization
-        grain = GrainParameters(
-            length_mm=300,
-            outer_diameter_mm=75,
-            initial_port_diameter_mm=25,
-            port_wall_thickness_mm=15,
-            port_axial_profile="cylindrical",
-            port_profile_taper_angle_deg=2
-        )
+        params = {}
         
-        combustion_chamber = CombustionChamberParameters(
-            length_mm=350,
-            inner_diameter_mm=80,
-            wall_thickness_mm=5,
-            chamber_volume_cc=1200
-        )
-        
-        injector = InjectorParameters(
-            inj_plate_thickness=8
-        )
-        
-        nozzle = NozzleParameters(
-            throat_diameter_mm=50,
-            exit_diameter_mm=200,
-            length_mm=150,
-            divergence_angle_deg=15,
-            contour_type="conical"
-        )
-        
-        # Default top-level parameters
-        params = {
-            "chamberPressure": 10.0,
-            "mixtureRatio": 2.1,
-            "throatDiameter": 50.0,
-            "chamberLength": 300.0,
-            "nozzleExpansionRatio": 16.0,
-            "propellantTemp": 298.0
-        }
-        
-        # Process parameters from flat structure
-        for param_name, param_range in config.parameter_ranges.items():
+        # Process top level parameters
+        for param_name, param_range in config.parameter_ranges.get("", {}).items():
             if param_range.fixed:
-                # Use fixed value if parameter is set as fixed
-                value = param_range.value
+                params[param_name] = param_range.value
             else:
-                # Otherwise suggest value from trial
-                value = trial.suggest_float(
+                params[param_name] = trial.suggest_float(
                     param_name, 
                     param_range.min, 
                     param_range.max,
                     step=param_range.step
                 )
-            
-            # Determine where this parameter belongs
-            if "." in param_name:
-                # Handle nested parameters like "grain.length_mm"
-                section, attr = param_name.split(".", 1)
-                if section == "grain":
-                    setattr(grain, attr, value)
-                elif section == "combustionChamber":
-                    setattr(combustion_chamber, attr, value)
-                elif section == "nozzle":
-                    if attr == "contour_type" and isinstance(value, (int, float)):
-                        # Handle special case for enum types
-                        setattr(nozzle, attr, "bell" if value > 0.5 else "conical")
-                    else:
-                        setattr(nozzle, attr, value)
-                elif section == "injector":
-                    setattr(injector, attr, value)
+        
+        # Process grain parameters
+        grain_params = {}
+        for param_name, param_range in config.parameter_ranges.get("grain", {}).items():
+            if param_range.fixed:
+                grain_params[param_name] = param_range.value
             else:
-                # Handle top-level parameters
-                params[param_name] = value
+                grain_params[param_name] = trial.suggest_float(
+                    f"grain.{param_name}", 
+                    param_range.min, 
+                    param_range.max,
+                    step=param_range.step
+                )
+        
+        # Process combustionChamber parameters
+        chamber_params = {}
+        for param_name, param_range in config.parameter_ranges.get("combustionChamber", {}).items():
+            if param_range.fixed:
+                chamber_params[param_name] = param_range.value
+            else:
+                chamber_params[param_name] = trial.suggest_float(
+                    f"combustionChamber.{param_name}", 
+                    param_range.min, 
+                    param_range.max,
+                    step=param_range.step
+                )
+        
+        # Process injector parameters
+        injector_params = {}
+        for param_name, param_range in config.parameter_ranges.get("injector", {}).items():
+            if param_range.fixed:
+                injector_params[param_name] = param_range.value
+            else:
+                injector_params[param_name] = trial.suggest_float(
+                    f"injector.{param_name}", 
+                    param_range.min, 
+                    param_range.max,
+                    step=param_range.step
+                )
+        
+        # Process nozzle parameters
+        nozzle_params = {}
+        for param_name, param_range in config.parameter_ranges.get("nozzle", {}).items():
+            if param_range.fixed:
+                nozzle_params[param_name] = param_range.value
+            else:
+                if param_name == 'contour_type':
+                    nozzle_params[param_name] = trial.suggest_categorical(
+                        f"nozzle.{param_name}", 
+                        ["conical", "bell"]
+                    )
+                else:
+                    nozzle_params[param_name] = trial.suggest_float(
+                        f"nozzle.{param_name}", 
+                        param_range.min, 
+                        param_range.max,
+                        step=param_range.step
+                    )
+        
+        # Create sub-models
+        grain = GrainParameters(
+            length_mm=grain_params.get("length_mm", 300),
+            outer_diameter_mm=grain_params.get("outer_diameter_mm", 75),
+            initial_port_diameter_mm=grain_params.get("initial_port_diameter_mm", 25),
+            port_wall_thickness_mm=grain_params.get("port_wall_thickness_mm", 15),
+            port_axial_profile=grain_params.get("port_axial_profile", "cylindrical"),
+            port_profile_taper_angle_deg=grain_params.get("port_profile_taper_angle_deg", 2)
+        )
+        
+        combustion_chamber = CombustionChamberParameters(
+            length_mm=chamber_params.get("length_mm", 350),
+            inner_diameter_mm=chamber_params.get("inner_diameter_mm", 80),
+            wall_thickness_mm=chamber_params.get("wall_thickness_mm", 5),
+            chamber_volume_cc=chamber_params.get("chamber_volume_cc", 1200)
+        )
+        
+        injector = InjectorParameters(
+            inj_plate_thickness=injector_params.get("inj_plate_thickness", 8)
+        )
+        
+        nozzle = NozzleParameters(
+            throat_diameter_mm=nozzle_params.get("throat_diameter_mm", 50),
+            exit_diameter_mm=nozzle_params.get("exit_diameter_mm", 200),
+            length_mm=nozzle_params.get("length_mm", 150),
+            divergence_angle_deg=nozzle_params.get("divergence_angle_deg", 15),
+            contour_type=nozzle_params.get("contour_type", "conical")
+        )
         
         # Create and return the RocketParameters
         return RocketParameters(
-            chamberPressure=params["chamberPressure"],
-            mixtureRatio=params["mixtureRatio"],
+            chamberPressure=params.get("chamberPressure", 10),
+            mixtureRatio=params.get("mixtureRatio", 2.1),
             throatDiameter=params.get("throatDiameter", 50),
             chamberLength=params.get("chamberLength", 300),
-            nozzleExpansionRatio=params["nozzleExpansionRatio"],
+            nozzleExpansionRatio=params.get("nozzleExpansionRatio", 16),
             propellantTemp=params.get("propellantTemp", 298),
             grain=grain,
             combustionChamber=combustion_chamber,
@@ -122,7 +150,7 @@ class OptimizationService:
             # Extract metrics based on objectives
             metrics = {}
             for objective in config.objectives:
-                metric_name = objective.name
+                metric_name = objective["metric"]
                 if metric_name == "thrust":
                     metrics["thrust"] = result.thrust
                 elif metric_name == "specificImpulse":
@@ -135,37 +163,40 @@ class OptimizationService:
             
             # Multi-objective optimization
             if len(config.objectives) > 1:
-                # Scalarize multiple objectives
+                # Scalarize multiple objectives with weights
                 score = 0
                 for objective in config.objectives:
-                    metric_value = metrics[objective.name]
+                    metric_value = metrics[objective["metric"]]
+                    weight = objective.get("weight", 1.0)
+                    direction = objective.get("direction", "maximize")
                     
                     # Normalize by typical values to keep ranges comparable
-                    if objective.name == "thrust":
+                    if objective["metric"] == "thrust":
                         normalized_value = metric_value / 100.0  # typical thrust in kN
-                    elif objective.name == "specificImpulse":
+                    elif objective["metric"] == "specificImpulse":
                         normalized_value = metric_value / 300.0  # typical Isp in seconds
-                    elif objective.name == "massFlowRate":
+                    elif objective["metric"] == "massFlowRate":
                         normalized_value = metric_value / 10.0  # typical mass flow rate in kg/s
                     else:
                         normalized_value = metric_value
                     
                     # Add to score based on direction (minimize or maximize)
-                    if objective.minimize:
-                        score += normalized_value
+                    if direction == "maximize":
+                        score -= normalized_value * weight  # Negative for maximization
                     else:
-                        score -= normalized_value  # Negative for maximization
+                        score += normalized_value * weight
                         
                 return score
             else:
                 # Single objective optimization
                 objective = config.objectives[0]
-                metric_value = metrics[objective.name]
+                metric_value = metrics[objective["metric"]]
+                direction = objective.get("direction", "maximize")
                 
-                if objective.minimize:
-                    return metric_value
-                else:
+                if direction == "maximize":
                     return -metric_value  # Negative for maximization
+                else:
+                    return metric_value
                 
         except Exception as e:
             print(f"Error in optimization trial: {str(e)}")
@@ -177,7 +208,16 @@ class OptimizationService:
         # Generate a unique study ID
         study_id = f"study_{int(time.time())}"
         
-        # Create the Optuna study
+        # Create the Optuna study with directions
+        directions = []
+        for obj in config.objectives:
+            if obj.get("direction", "maximize") == "maximize":
+                directions.append(optuna.study.StudyDirection.MAXIMIZE)
+            else:
+                directions.append(optuna.study.StudyDirection.MINIMIZE)
+        
+        # For multi-objective optimization, we still use a single scalar objective
+        # but we track multiple metrics as user attributes
         study = optuna.create_study(
             study_name=study_id,
             direction=optuna.study.StudyDirection.MINIMIZE
@@ -194,22 +234,6 @@ class OptimizationService:
         # Return the study ID
         return study_id
     
-    # ... keep existing code for run_optimization, continue_optimization, get_optimization_results methods
-
-    def list_studies(self) -> List[str]:
-        """List all available studies."""
-        # List active studies
-        studies = list(self.active_studies.keys())
-        
-        # Also check for studies on disk
-        for file_name in os.listdir(STUDIES_DIR):
-            if file_name.endswith(".json"):
-                study_id = file_name[:-5]
-                if study_id not in studies:
-                    studies.append(study_id)
-        
-        return studies
-        
     def run_optimization(self, study_id: str, async_mode: bool = False) -> OptimizationResult:
         """Run an optimization study."""
         if study_id not in self.active_studies:
@@ -406,3 +430,17 @@ class OptimizationService:
         except Exception as e:
             print(f"Error loading study {study_id}: {str(e)}")
             return False
+    
+    def list_studies(self) -> List[str]:
+        """List all available studies."""
+        # List active studies
+        studies = list(self.active_studies.keys())
+        
+        # Also check for studies on disk
+        for file_name in os.listdir(STUDIES_DIR):
+            if file_name.endswith(".json"):
+                study_id = file_name[:-5]
+                if study_id not in studies:
+                    studies.append(study_id)
+        
+        return studies

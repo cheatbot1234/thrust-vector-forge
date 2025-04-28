@@ -47,15 +47,9 @@ class ParameterRange(BaseModel):
     fixed: bool = False
     value: Optional[float] = None
 
-# Updated ObjectiveConfig model to match the new format
-class ObjectiveConfig(BaseModel):
-    name: str  # 'thrust', 'specificImpulse', 'massFlowRate', etc.
-    minimize: bool  # True for minimization, False for maximization
-
-# Updated OptimizationConfig to use flat parameter_ranges structure
 class OptimizationConfig(BaseModel):
-    parameter_ranges: Dict[str, ParameterRange]
-    objectives: List[ObjectiveConfig]
+    parameter_ranges: Dict[str, Dict[str, ParameterRange]]
+    objectives: List[Dict[str, Any]]
     n_trials: int = 100
     timeout: Optional[int] = None
     early_stopping_trials: Optional[int] = None
