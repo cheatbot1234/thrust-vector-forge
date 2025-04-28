@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,27 +37,23 @@ interface OptimizationPanelProps {
   availableStudies: string[];
 }
 
+// Updated DEFAULT_CONFIG with flat parameter structure
 const DEFAULT_CONFIG: OptimizationConfig = {
   parameter_ranges: {
-    "": {
-      "chamberPressure": { min: 5, max: 20, step: 0.5, fixed: false },
-      "mixtureRatio": { min: 1.5, max: 3, step: 0.1, fixed: false },
-      "propellantTemp": { min: 273, max: 323, step: 5, fixed: true, value: 298 },
-    },
-    "grain": {
-      "length_mm": { min: 200, max: 500, step: 10, fixed: false },
-      "outer_diameter_mm": { min: 50, max: 150, step: 5, fixed: false },
-      "initial_port_diameter_mm": { min: 15, max: 50, step: 1, fixed: false },
-    },
-    "nozzle": {
-      "throat_diameter_mm": { min: 30, max: 80, step: 2, fixed: false },
-      "divergence_angle_deg": { min: 10, max: 25, step: 1, fixed: false },
-      "contour_type": { min: 0, max: 1, step: 1, fixed: true, value: "bell" as any },
-    }
+    "chamberPressure": { min: 5, max: 20, step: 0.5, fixed: false },
+    "mixtureRatio": { min: 1.5, max: 3, step: 0.1, fixed: false },
+    "nozzleExpansionRatio": { min: 8, max: 20, step: 1, fixed: false },
+    "propellantTemp": { min: 273, max: 323, step: 5, fixed: true, value: 298 },
+    "grain.length_mm": { min: 200, max: 500, step: 10, fixed: false },
+    "grain.outer_diameter_mm": { min: 50, max: 150, step: 5, fixed: false },
+    "grain.initial_port_diameter_mm": { min: 15, max: 50, step: 1, fixed: false },
+    "nozzle.throat_diameter_mm": { min: 30, max: 80, step: 2, fixed: false },
+    "nozzle.divergence_angle_deg": { min: 10, max: 25, step: 1, fixed: false },
+    "nozzle.contour_type": { min: 0, max: 1, step: 1, fixed: true, value: "bell" as any },
   },
   objectives: [
-    { metric: "thrust", direction: "maximize", weight: 1.0 },
-    { metric: "specificImpulse", direction: "maximize", weight: 1.0 },
+    { name: "thrust", minimize: false, weight: 1.0 },
+    { name: "specificImpulse", minimize: false, weight: 1.0 },
   ],
   n_trials: 50,
   timeout: 600,  // 10 minutes timeout
@@ -86,7 +83,7 @@ const OptimizationPanel = ({
       ...config,
       objectives: [
         ...config.objectives,
-        { metric: "specificImpulse", direction: "maximize", weight: 1.0 }
+        { name: "specificImpulse", minimize: false, weight: 1.0 }
       ]
     });
   };
@@ -99,26 +96,22 @@ const OptimizationPanel = ({
     setConfig({ ...config, objectives: newObjectives });
   };
   
+  // Updated to handle flat parameter structure
   const handleParameterRangeChange = (
-    category: string,
-    parameter: string,
+    paramName: string,
     field: keyof ParameterRange,
     value: any
   ) => {
-    // Ensure the category exists in parameter_ranges
     const updatedRanges = { ...config.parameter_ranges };
-    if (!updatedRanges[category]) {
-      updatedRanges[category] = {};
-    }
     
-    // Ensure the parameter exists in the category
-    if (!updatedRanges[category][parameter]) {
-      updatedRanges[category][parameter] = { min: 0, max: 0, fixed: false };
+    // Ensure the parameter exists
+    if (!updatedRanges[paramName]) {
+      updatedRanges[paramName] = { min: 0, max: 0, fixed: false };
     }
     
     // Update the field
-    updatedRanges[category][parameter] = {
-      ...updatedRanges[category][parameter],
+    updatedRanges[paramName] = {
+      ...updatedRanges[paramName],
       [field]: value
     };
     
@@ -153,6 +146,32 @@ const OptimizationPanel = ({
       onLoadStudyResults(selectedStudy);
     }
   };
+
+  // Helper function to group parameters by section for UI organization
+  const getParametersBySection = () => {
+    const sections: Record<string, string[]> = {
+      "": [], // Top level parameters 
+      "grain": [],
+      "nozzle": [],
+      "combustionChamber": [],
+      "injector": []
+    };
+    
+    Object.keys(config.parameter_ranges).forEach(param => {
+      if (param.includes('.')) {
+        const [section, name] = param.split('.');
+        if (sections[section]) {
+          sections[section].push(param);
+        }
+      } else {
+        sections[""].push(param);
+      }
+    });
+    
+    return sections;
+  };
+  
+  const parametersBySection = getParametersBySection();
 
   return (
     <Card className="bg-rocket-blue border-rocket-blue/50 text-white w-full md:w-2/5 overflow-hidden">
@@ -191,108 +210,93 @@ const OptimizationPanel = ({
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-rocket-orange">Top Level Parameters</h3>
               
-              <ParameterRangeInput
-                category=""
-                parameter="chamberPressure"
-                range={config.parameter_ranges[""]?.["chamberPressure"] || { min: 0, max: 0, fixed: false }}
-                onChange={handleParameterRangeChange}
-                label="Chamber Pressure (MPa)"
-              />
-              
-              <ParameterRangeInput
-                category=""
-                parameter="mixtureRatio"
-                range={config.parameter_ranges[""]?.["mixtureRatio"] || { min: 0, max: 0, fixed: false }}
-                onChange={handleParameterRangeChange}
-                label="Mixture Ratio (O/F)"
-              />
-              
-              <ParameterRangeInput
-                category=""
-                parameter="propellantTemp"
-                range={config.parameter_ranges[""]?.["propellantTemp"] || { min: 0, max: 0, fixed: false }}
-                onChange={handleParameterRangeChange}
-                label="Propellant Temperature (K)"
-              />
+              {parametersBySection[""].map(param => (
+                <ParameterRangeInput
+                  key={param}
+                  parameter={param}
+                  range={config.parameter_ranges[param] || { min: 0, max: 0, fixed: false }}
+                  onChange={(_, field, value) => handleParameterRangeChange(param, field, value)}
+                  label={getLabelForParameter(param)}
+                />
+              ))}
               
               <Separator className="my-4 bg-rocket-blue/30" />
               
               <h3 className="text-sm font-medium text-rocket-orange">Grain Parameters</h3>
               
-              <ParameterRangeInput
-                category="grain"
-                parameter="length_mm"
-                range={config.parameter_ranges["grain"]?.["length_mm"] || { min: 0, max: 0, fixed: false }}
-                onChange={handleParameterRangeChange}
-                label="Grain Length (mm)"
-              />
-              
-              <ParameterRangeInput
-                category="grain"
-                parameter="outer_diameter_mm"
-                range={config.parameter_ranges["grain"]?.["outer_diameter_mm"] || { min: 0, max: 0, fixed: false }}
-                onChange={handleParameterRangeChange}
-                label="Outer Diameter (mm)"
-              />
-              
-              <ParameterRangeInput
-                category="grain"
-                parameter="initial_port_diameter_mm"
-                range={config.parameter_ranges["grain"]?.["initial_port_diameter_mm"] || { min: 0, max: 0, fixed: false }}
-                onChange={handleParameterRangeChange}
-                label="Initial Port Diameter (mm)"
-              />
+              {parametersBySection["grain"].map(param => (
+                <ParameterRangeInput
+                  key={param}
+                  parameter={param}
+                  range={config.parameter_ranges[param] || { min: 0, max: 0, fixed: false }}
+                  onChange={(_, field, value) => handleParameterRangeChange(param, field, value)}
+                  label={getLabelForParameter(param)}
+                />
+              ))}
               
               <Separator className="my-4 bg-rocket-blue/30" />
               
               <h3 className="text-sm font-medium text-rocket-orange">Nozzle Parameters</h3>
               
-              <ParameterRangeInput
-                category="nozzle"
-                parameter="throat_diameter_mm"
-                range={config.parameter_ranges["nozzle"]?.["throat_diameter_mm"] || { min: 0, max: 0, fixed: false }}
-                onChange={handleParameterRangeChange}
-                label="Throat Diameter (mm)"
-              />
-              
-              <ParameterRangeInput
-                category="nozzle"
-                parameter="divergence_angle_deg"
-                range={config.parameter_ranges["nozzle"]?.["divergence_angle_deg"] || { min: 0, max: 0, fixed: false }}
-                onChange={handleParameterRangeChange}
-                label="Divergence Angle (deg)"
-              />
-              
-              <div className="space-y-2">
-                <Label className="text-gray-300">Nozzle Contour Type</Label>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="contour-fixed"
-                    checked={config.parameter_ranges["nozzle"]?.["contour_type"]?.fixed || false}
-                    onCheckedChange={(checked) =>
-                      handleParameterRangeChange("nozzle", "contour_type", "fixed", checked)
-                    }
+              {parametersBySection["nozzle"].map(param => (
+                param === "nozzle.contour_type" ? (
+                  <div key={param} className="space-y-2">
+                    <Label className="text-gray-300">Nozzle Contour Type</Label>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="contour-fixed"
+                        checked={config.parameter_ranges[param]?.fixed || false}
+                        onCheckedChange={(checked) =>
+                          handleParameterRangeChange(param, "fixed", checked)
+                        }
+                      />
+                      <Label htmlFor="contour-fixed">Fixed Value</Label>
+                    </div>
+                    
+                    {config.parameter_ranges[param]?.fixed && (
+                      <Select
+                        value={config.parameter_ranges[param]?.value?.toString() || "bell"}
+                        onValueChange={(value) =>
+                          handleParameterRangeChange(param, "value", value)
+                        }
+                      >
+                        <SelectTrigger className="bg-rocket-darkBlue border-rocket-blue/30 text-white">
+                          <SelectValue placeholder="Select contour type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-rocket-darkBlue border-rocket-blue/30 text-white">
+                          <SelectItem value="bell">Bell</SelectItem>
+                          <SelectItem value="conical">Conical</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                ) : (
+                  <ParameterRangeInput
+                    key={param}
+                    parameter={param}
+                    range={config.parameter_ranges[param] || { min: 0, max: 0, fixed: false }}
+                    onChange={(_, field, value) => handleParameterRangeChange(param, field, value)}
+                    label={getLabelForParameter(param)}
                   />
-                  <Label htmlFor="contour-fixed">Fixed Value</Label>
-                </div>
-                
-                {config.parameter_ranges["nozzle"]?.["contour_type"]?.fixed && (
-                  <Select
-                    value={config.parameter_ranges["nozzle"]?.["contour_type"]?.value?.toString() || "bell"}
-                    onValueChange={(value) =>
-                      handleParameterRangeChange("nozzle", "contour_type", "value", value)
-                    }
-                  >
-                    <SelectTrigger className="bg-rocket-darkBlue border-rocket-blue/30 text-white">
-                      <SelectValue placeholder="Select contour type" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-rocket-darkBlue border-rocket-blue/30 text-white">
-                      <SelectItem value="bell">Bell</SelectItem>
-                      <SelectItem value="conical">Conical</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+                )
+              ))}
+              
+              {parametersBySection["combustionChamber"].length > 0 && (
+                <>
+                  <Separator className="my-4 bg-rocket-blue/30" />
+                  <h3 className="text-sm font-medium text-rocket-orange">Combustion Chamber Parameters</h3>
+                  
+                  {parametersBySection["combustionChamber"].map(param => (
+                    <ParameterRangeInput
+                      key={param}
+                      parameter={param}
+                      range={config.parameter_ranges[param] || { min: 0, max: 0, fixed: false }}
+                      onChange={(_, field, value) => handleParameterRangeChange(param, field, value)}
+                      label={getLabelForParameter(param)}
+                    />
+                  ))}
+                </>
+              )}
             </div>
           </TabsContent>
           
@@ -318,8 +322,8 @@ const OptimizationPanel = ({
                 <div className="space-y-2">
                   <Label htmlFor={`metric-${index}`} className="text-gray-300">Metric</Label>
                   <Select
-                    value={objective.metric}
-                    onValueChange={(value: any) => handleObjectiveChange(index, "metric", value)}
+                    value={objective.name}
+                    onValueChange={(value: any) => handleObjectiveChange(index, "name", value)}
                   >
                     <SelectTrigger id={`metric-${index}`} className="bg-rocket-darkBlue border-rocket-blue/30 text-white">
                       <SelectValue placeholder="Select metric" />
@@ -335,8 +339,8 @@ const OptimizationPanel = ({
                 <div className="space-y-2">
                   <Label htmlFor={`direction-${index}`} className="text-gray-300">Direction</Label>
                   <Select
-                    value={objective.direction}
-                    onValueChange={(value: any) => handleObjectiveChange(index, "direction", value)}
+                    value={objective.minimize ? "minimize" : "maximize"}
+                    onValueChange={(value: any) => handleObjectiveChange(index, "minimize", value === "minimize")}
                   >
                     <SelectTrigger id={`direction-${index}`} className="bg-rocket-darkBlue border-rocket-blue/30 text-white">
                       <SelectValue placeholder="Select direction" />
@@ -547,5 +551,25 @@ const OptimizationPanel = ({
     </Card>
   );
 };
+
+// Helper function to format parameter names for display
+function getLabelForParameter(param: string): string {
+  if (param.includes('.')) {
+    const [section, name] = param.split('.');
+    // Convert snake_case to Title Case with spaces
+    const formattedName = name.replace(/_/g, ' ').replace(/mm$/, ' (mm)').replace(/deg$/, ' (deg)');
+    return formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
+  } else {
+    // Format top-level parameters
+    switch(param) {
+      case 'chamberPressure': return 'Chamber Pressure (MPa)';
+      case 'mixtureRatio': return 'Mixture Ratio (O/F)';
+      case 'nozzleExpansionRatio': return 'Nozzle Expansion Ratio';
+      case 'propellantTemp': return 'Propellant Temperature (K)';
+      case 'throatDiameter': return 'Throat Diameter (mm)';
+      default: return param.replace(/([A-Z])/g, ' $1').trim();
+    }
+  }
+}
 
 export default OptimizationPanel;

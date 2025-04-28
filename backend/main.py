@@ -214,7 +214,7 @@ def create_optimization(config: OptimizationConfig):
         optimization_service = OptimizationService(run_simulation)
     
     try:
-        # Print the incoming config to diagnose issues
+        # Log the config structure to help debug
         print(f"Received optimization config: {config}")
         study_id = optimization_service.create_study(config)
         return {"study_id": study_id, "message": "Optimization study created successfully"}
@@ -222,7 +222,7 @@ def create_optimization(config: OptimizationConfig):
     except Exception as e:
         import traceback; 
         print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail="Optimization service failure, check the logs")
+        raise HTTPException(status_code=500, detail=f"Optimization service failure: {str(e)}")
 
 @app.post("/optimize/run/{study_id}")
 def run_optimization(study_id: str, async_mode: bool = False):
