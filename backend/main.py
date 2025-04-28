@@ -8,6 +8,9 @@ import time
 import json
 from rocketcea.cea_obj import CEA_Obj
 import CoolProp.CoolProp as CP
+from models import (RocketParameters, OptimizationConfig, 
+                   OptimizationResult, OptimizationTrial)
+from optimization_service import OptimizationService
 
 app = FastAPI(title="Hybrid Rocket Simulation API")
 
@@ -20,46 +23,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class GrainParameters(BaseModel):
-    length_mm: float
-    outer_diameter_mm: float
-    initial_port_diameter_mm: float
-    port_wall_thickness_mm: float
-    port_axial_profile: Literal["cylindrical", "tapered"]
-    port_profile_taper_angle_deg: float
-
-class CombustionChamberParameters(BaseModel):
-    length_mm: float
-    inner_diameter_mm: float
-    wall_thickness_mm: float
-    chamber_volume_cc: float
-
-class InjectorParameters(BaseModel):
-    inj_plate_thickness: float
-
-class NozzleParameters(BaseModel):
-    throat_diameter_mm: float
-    exit_diameter_mm: float
-    length_mm: float
-    divergence_angle_deg: float
-    contour_type: Literal["conical", "bell"]
-
-class RocketParameters(BaseModel):
-    chamberPressure: float  # MPa
-    mixtureRatio: float     # O/F Ratio
-    throatDiameter: float   # mm
-    chamberLength: float    # mm
-    nozzleExpansionRatio: float  # Ae/At
-    propellantTemp: float   # K
-    
-    # Hybrid rocket specific parameters
-    grain: GrainParameters
-    combustionChamber: CombustionChamberParameters
-    injector: InjectorParameters
-    nozzle: NozzleParameters
-
 # Initialize RocketCEA for N2O/Paraffin hybrid
 cea_obj = CEA_Obj(oxName="N2O", fuelName="Paraffin")
+
+# Create optimization service
+optimization_service = None  # Initialize later
 
 @app.get("/")
 def read_root():
@@ -219,10 +187,87 @@ def run_simulation(parameters: RocketParameters):
             }
         }
         
+        # Initialize optimization service if needed
+        global optimization_service
+        if optimization_service is None:
+            optimization_service = OptimizationService(run_simulation)
+        
         return result
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
+
+# Optimization endpoints
+@app.post("/optimize/create")
+def create_optimization(config: OptimizationConfig):
+    """Create a new optimization study."""
+    global optimization_service
+    if optimization_service is None:
+        optimization_service = OptimizationService(run_simulation)
+    
+    try:
+        study_id = optimization_service.create_study(config)
+        return {"study_id": study_id, "message": "Optimization study created successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create optimization study: {str(e)}")
+
+@app.post("/optimize/run/{study_id}")
+def run_optimization(study_id: str, async_mode: bool = False):
+    """Run an optimization study."""
+    global optimization_service
+    if optimization_service is None:
+        raise HTTPException(status_code=500, detail="Optimization service not initialized")
+    
+    try:
+        result = optimization_service.run_optimization(study_id, async_mode)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
+
+@app.post("/optimize/continue/{study_id}")
+def continue_optimization(study_id: str, n_trials: int = 10):
+    """Continue an existing optimization study."""
+    global optimization_service
+    if optimization_service is None:
+        raise HTTPException(status_code=500, detail="Optimization service not initialized")
+    
+    try:
+        result = optimization_service.continue_optimization(study_id, n_trials)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
+
+@app.get("/optimize/results/{study_id}")
+def get_optimization_results(study_id: str):
+    """Get results of an optimization study."""
+    global optimization_service
+    if optimization_service is None:
+        raise HTTPException(status_code=500, detail="Optimization service not initialized")
+    
+    try:
+        result = optimization_service.get_optimization_results(study_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get optimization results: {str(e)}")
+
+@app.get("/optimize/studies")
+def list_studies():
+    """List all available optimization studies."""
+    global optimization_service
+    if optimization_service is None:
+        optimization_service = OptimizationService(run_simulation)
+    
+    try:
+        studies = optimization_service.list_studies()
+        return {"studies": studies}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list studies: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

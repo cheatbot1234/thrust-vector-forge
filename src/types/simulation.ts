@@ -66,3 +66,46 @@ export interface SimulationOptions {
   convergenceCriteria?: number;
   meshDensity?: number;
 }
+
+// New interfaces for optimization
+
+export interface ParameterRange {
+  min: number;
+  max: number;
+  step?: number;
+  fixed: boolean;
+  value?: number;
+}
+
+export interface OptimizationObjective {
+  metric: 'thrust' | 'specificImpulse' | 'massFlowRate';
+  direction: 'maximize' | 'minimize';
+  weight?: number;
+}
+
+export interface OptimizationConfig {
+  parameter_ranges: {
+    [category: string]: { 
+      [parameter: string]: ParameterRange 
+    };
+  };
+  objectives: OptimizationObjective[];
+  n_trials: number;
+  timeout?: number;
+  early_stopping_trials?: number;
+}
+
+export interface OptimizationTrial {
+  trial_id: number;
+  params: Record<string, any>;
+  values: Record<string, number>;
+  timestamp: number;
+}
+
+export interface OptimizationResult {
+  study_id: string;
+  config: OptimizationConfig;
+  best_trials: OptimizationTrial[];
+  trials_history: OptimizationTrial[];
+  parameter_importance: Record<string, number>;
+}
