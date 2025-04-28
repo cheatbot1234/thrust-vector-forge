@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,7 +36,6 @@ interface OptimizationPanelProps {
   availableStudies: string[];
 }
 
-// Updated DEFAULT_CONFIG with flat parameter structure
 const DEFAULT_CONFIG: OptimizationConfig = {
   parameter_ranges: {
     "chamberPressure": { min: 5, max: 20, step: 0.5, fixed: false },
@@ -96,7 +94,6 @@ const OptimizationPanel = ({
     setConfig({ ...config, objectives: newObjectives });
   };
   
-  // Updated to handle flat parameter structure
   const handleParameterRangeChange = (
     paramName: string,
     field: keyof ParameterRange,
@@ -104,12 +101,10 @@ const OptimizationPanel = ({
   ) => {
     const updatedRanges = { ...config.parameter_ranges };
     
-    // Ensure the parameter exists
     if (!updatedRanges[paramName]) {
       updatedRanges[paramName] = { min: 0, max: 0, fixed: false };
     }
     
-    // Update the field
     updatedRanges[paramName] = {
       ...updatedRanges[paramName],
       [field]: value
@@ -147,10 +142,9 @@ const OptimizationPanel = ({
     }
   };
 
-  // Helper function to group parameters by section for UI organization
   const getParametersBySection = () => {
     const sections: Record<string, string[]> = {
-      "": [], // Top level parameters 
+      "": [],
       "grain": [],
       "nozzle": [],
       "combustionChamber": [],
@@ -215,7 +209,7 @@ const OptimizationPanel = ({
                   key={param}
                   parameter={param}
                   range={config.parameter_ranges[param] || { min: 0, max: 0, fixed: false }}
-                  onChange={(_, field, value) => handleParameterRangeChange(param, field, value)}
+                  onChange={handleParameterRangeChange}
                   label={getLabelForParameter(param)}
                 />
               ))}
@@ -229,7 +223,7 @@ const OptimizationPanel = ({
                   key={param}
                   parameter={param}
                   range={config.parameter_ranges[param] || { min: 0, max: 0, fixed: false }}
-                  onChange={(_, field, value) => handleParameterRangeChange(param, field, value)}
+                  onChange={handleParameterRangeChange}
                   label={getLabelForParameter(param)}
                 />
               ))}
@@ -275,7 +269,7 @@ const OptimizationPanel = ({
                     key={param}
                     parameter={param}
                     range={config.parameter_ranges[param] || { min: 0, max: 0, fixed: false }}
-                    onChange={(_, field, value) => handleParameterRangeChange(param, field, value)}
+                    onChange={handleParameterRangeChange}
                     label={getLabelForParameter(param)}
                   />
                 )
@@ -291,7 +285,7 @@ const OptimizationPanel = ({
                       key={param}
                       parameter={param}
                       range={config.parameter_ranges[param] || { min: 0, max: 0, fixed: false }}
-                      onChange={(_, field, value) => handleParameterRangeChange(param, field, value)}
+                      onChange={handleParameterRangeChange}
                       label={getLabelForParameter(param)}
                     />
                   ))}
@@ -552,15 +546,11 @@ const OptimizationPanel = ({
   );
 };
 
-// Helper function to format parameter names for display
 function getLabelForParameter(param: string): string {
   if (param.includes('.')) {
     const [section, name] = param.split('.');
-    // Convert snake_case to Title Case with spaces
-    const formattedName = name.replace(/_/g, ' ').replace(/mm$/, ' (mm)').replace(/deg$/, ' (deg)');
-    return formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
+    return name.replace(/_/g, ' ').replace(/mm$/, ' (mm)').replace(/deg$/, ' (deg)');
   } else {
-    // Format top-level parameters
     switch(param) {
       case 'chamberPressure': return 'Chamber Pressure (MPa)';
       case 'mixtureRatio': return 'Mixture Ratio (O/F)';
