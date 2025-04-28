@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional, Literal
 import numpy as np
 import time
 import json
-from rocketcea.cea_obj import CEA_Obj
+from rocketcea.cea_obj import add_new_fuel, CEA_Obj
 import CoolProp.CoolProp as CP
 from models import (RocketParameters, OptimizationConfig, 
                    OptimizationResult, OptimizationTrial)
@@ -24,7 +24,14 @@ app.add_middleware(
 )
 
 # Initialize RocketCEA for N2O/Paraffin hybrid
-cea_obj = CEA_Obj(oxName="N2O", fuelName="Paraffin")
+
+card_str = """
+fuel paraffin  C 25.0  H 52.0  wt%=100.0
+h,cal=0.0  t(k)=298.15  rho=0.9
+"""
+add_new_fuel('paraffin', card_str)
+
+cea_obj = CEA_Obj(oxName="N2O", fuelName="paraffin")
 
 # Create optimization service
 optimization_service = None  # Initialize later
