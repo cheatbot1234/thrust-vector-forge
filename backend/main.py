@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -8,8 +7,7 @@ import time
 import json
 from rocketcea.cea_obj import add_new_fuel, CEA_Obj
 import CoolProp.CoolProp as CP
-from models import (RocketParameters, OptimizationConfig, 
-                   OptimizationResult, OptimizationTrial)
+from models import RocketParameters, OptimizationConfig, OptimizationResult, OptimizationTrial
 from optimization_service import OptimizationService
 
 app = FastAPI(title="Hybrid Rocket Simulation API")
@@ -24,7 +22,6 @@ app.add_middleware(
 )
 
 # Initialize RocketCEA for N2O/Paraffin hybrid
-
 card_str = """
 fuel paraffin  C 25.0  H 52.0  wt%=100.0
 h,cal=0.0  t(k)=298.15  rho=0.9
@@ -40,6 +37,7 @@ optimization_service = None  # Initialize later
 def read_root():
     return {"status": "ok", "message": "Hybrid Rocket Simulation API is running"}
 
+# Simulation endpoint
 @app.post("/simulate")
 def run_simulation(parameters: RocketParameters):
     try:
@@ -48,18 +46,19 @@ def run_simulation(parameters: RocketParameters):
         
         # Get CEA data for the N2O/Paraffin combination at given mixture ratio
         cea_data = cea_obj.get_full_cea_output(
-            pc=pc_psia,
-            of=parameters.mixtureRatio,
+            Pc=pc_psia,
+            MR=parameters.mixtureRatio,
             frozen=0,  # Equilibrium
             short_output=0
         )
         
         # Extract key parameters from CEA
-        isp_vac = cea_obj.get_Isp(pc=pc_psia, er=parameters.nozzleExpansionRatio, of=parameters.mixtureRatio)
-        cstar = cea_obj.get_Cstar(pc=pc_psia, of=parameters.mixtureRatio)
-        gamma = cea_obj.get_Gamma(pc=pc_psia, of=parameters.mixtureRatio)
-        t_chamber = cea_obj.get_Tcomb(pc=pc_psia, of=parameters.mixtureRatio)
-        mw = cea_obj.get_MolWt_g(pc=pc_psia, of=parameters.mixtureRatio)
+        isp_vac = cea_obj.get_Isp(Pc=pc_psia, eps=parameters.nozzleExpansionRatio, MR=parameters.mixtureRatio)
+        cstar = cea_obj.get_Cstar(Pc=pc_psia, MR=parameters.mixtureRatio)
+        gamma = gamma = cea_obj.get_Chamber_MolWt_gamma(Pc=pc_psia, MR=parameters.mixtureRatio)
+        t_chamber = cea_obj.get_Tcomb(Pc=pc_psia, MR=parameters.mixtureRatio)
+        mw, gamma = cea_obj.get_Chamber_MolWt_gamma(Pc=pc_psia, MR=parameters.mixtureRatio)
+
         
         # N2O properties using CoolProp
         n2o_density = CP.PropsSI('D', 'T', parameters.propellantTemp, 'P', 5000000, 'NitrousOxide')  # kg/m³
@@ -202,7 +201,9 @@ def run_simulation(parameters: RocketParameters):
         return result
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Simulation failed: {str(e)}")
+        import traceback; 
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Simulation internal failure, check the server logs")
 
 # Optimization endpoints
 @app.post("/optimize/create")
@@ -217,9 +218,11 @@ def create_optimization(config: OptimizationConfig):
         print(f"Received optimization config: {config}")
         study_id = optimization_service.create_study(config)
         return {"study_id": study_id, "message": "Optimization study created successfully"}
+    
     except Exception as e:
-        print(f"Error creating optimization study: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to create optimization study: {str(e)}")
+        import traceback; 
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="Optimization service failure, check the logs")
 
 @app.post("/optimize/run/{study_id}")
 def run_optimization(study_id: str, async_mode: bool = False):
