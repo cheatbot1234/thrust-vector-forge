@@ -74,7 +74,13 @@ const Optimization = () => {
     
     try {
       setIsOptimizing(true);
-      const { study_id } = await createOptimizationStudy(config);
+      
+      // Log the config for debugging
+      console.log("Creating optimization with config:", JSON.stringify(config, null, 2));
+      
+      const response = await createOptimizationStudy(config);
+      const study_id = response.study_id;
+      
       setActiveStudyId(study_id);
       
       toast({
@@ -85,6 +91,7 @@ const Optimization = () => {
       await loadStudies();
       
     } catch (error) {
+      console.error("Optimization creation error:", error);
       toast({
         title: "Failed to create optimization",
         description: error instanceof Error ? error.message : "An unknown error occurred",
