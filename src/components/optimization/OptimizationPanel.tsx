@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,7 +51,7 @@ const DEFAULT_CONFIG: OptimizationConfig = {
     "nozzle": {
       "throat_diameter_mm": { min: 30, max: 80, step: 2, fixed: false },
       "divergence_angle_deg": { min: 10, max: 25, step: 1, fixed: false },
-      "contour_type": { min: 0, max: 1, step: 1, fixed: true, value: "bell" },
+      "contour_type": { min: 0, max: 1, step: 1, fixed: true, value: "bell" as any },
     }
   },
   objectives: [

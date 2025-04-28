@@ -213,9 +213,12 @@ def create_optimization(config: OptimizationConfig):
         optimization_service = OptimizationService(run_simulation)
     
     try:
+        # Print the incoming config to diagnose issues
+        print(f"Received optimization config: {config}")
         study_id = optimization_service.create_study(config)
         return {"study_id": study_id, "message": "Optimization study created successfully"}
     except Exception as e:
+        print(f"Error creating optimization study: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to create optimization study: {str(e)}")
 
 @app.post("/optimize/run/{study_id}")

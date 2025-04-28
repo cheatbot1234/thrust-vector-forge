@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -383,7 +382,7 @@ const OptimizationResults = ({ results, isLoading }: OptimizationResultsProps) =
                     />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#1a2a4f', borderColor: '#334155' }}
-                      formatter={(value) => [`${value.toFixed(2)}%`, 'Importance']}
+                      formatter={(value) => [`${typeof value === 'number' ? value.toFixed(2) : value}%`, 'Importance']}
                     />
                     <Bar dataKey="importance" fill="#ff7e33" name="Importance" />
                   </BarChart>
